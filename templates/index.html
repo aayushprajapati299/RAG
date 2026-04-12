@@ -1,0 +1,336 @@
+<!-- Frontend for the Vectorless RAG system. Served by Flask from app.py -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Q&A</title>
+    <style>
+        /* Base page styling constraints */
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 2rem;
+            color: #1a1a1a;
+            background-color: #ffffff;
+        }
+
+        /* SECTION 1 - Header */
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #666;
+            margin-top: 0;
+        }
+
+        /* Basic form elements */
+        button {
+            background-color: #1a1a1a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 15px;
+            transition: background-color 0.2s ease;
+            width: auto;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #333;
+        }
+
+        button:disabled {
+            background-color: #888;
+            cursor: not-allowed;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 15px;
+            box-sizing: border-box;
+            /* Maintain width inside padding */
+            font-family: inherit;
+        }
+
+        /* Structure wraps */
+        .panel {
+            margin-bottom: 2rem;
+        }
+
+        .form-row {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Status formatting */
+        .status-msg {
+            font-size: 13px;
+            min-height: 18px;
+            /* Avoid jumping layout */
+            margin-top: 8px;
+        }
+
+        .success {
+            color: #2e7d32;
+        }
+
+        .error {
+            color: #c62828;
+        }
+
+        /* SECTION 3 - Answer Box Layout */
+        .answer-box {
+            background-color: #f7f7f7;
+            border-left: 4px solid #1a1a1a;
+            padding: 1rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            /* Keeps line breaks exactly as returned by LLM */
+            margin-top: 1.5rem;
+            display: none;
+            /* Invisible until content arrives */
+            line-height: 1.6;
+        }
+
+        .sources-text {
+            color: #888;
+            font-size: 13px;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+        }
+
+        /* Keyframes for the pulsing loading line */
+        .loader {
+            display: none;
+            /* hidden until button clicked */
+            margin: 15px 0 0 0;
+            width: 50px;
+            height: 4px;
+            background-color: #eee;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .loader::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 40%;
+            background-color: #1a1a1a;
+            border-radius: 2px;
+            animation: pulse 1s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(250%);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- SECTION 1: Header -->
+    <header>
+        <h1>Document Q&A</h1>
+        <p class="subtitle">Upload a document, then ask it anything</p>
+    </header>
+
+    <!-- SECTION 2: Upload Panel -->
+    <div class="panel" id="upload-panel">
+        <label for="file-input" style="display:block; margin-bottom:8px; font-weight:600; font-size:15px;">Document
+            Upload</label>
+        <div class="form-row">
+            <input type="file" id="file-input" accept=".pdf,.txt">
+        </div>
+        <button id="upload-btn">Upload Document</button>
+        <div id="upload-status" class="status-msg"></div>
+    </div>
+
+    <!-- SECTION 3: Question and Answer Panel -->
+    <div class="panel" id="qa-panel">
+        <div class="form-row">
+            <input type="text" id="question-input" placeholder="Ask a question about your document...">
+        </div>
+        <button id="ask-btn">Ask</button>
+
+        <div id="ask-loader" class="loader"></div>
+        <div id="ask-status" class="status-msg"></div>
+
+        <div id="answer-container" class="answer-box">
+            <div id="answer-text"></div>
+            <div id="sources-info" class="sources-text"></div>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATON JAVASCRIPT -->
+    <script>
+        // --- 1. Identify all page elements ---
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const uploadStatus = document.getElementById('upload-status');
+
+        const questionInput = document.getElementById('question-input');
+        const askBtn = document.getElementById('ask-btn');
+        const askLoader = document.getElementById('ask-loader');
+        const askStatus = document.getElementById('ask-status');
+
+        const answerContainer = document.getElementById('answer-container');
+        const answerText = document.getElementById('answer-text');
+        const sourcesInfo = document.getElementById('sources-info');
+
+        // --- 2. Provide functionality for uploading the document ---
+        uploadBtn.addEventListener('click', async () => {
+            // Error out early if they hit upload without selecting anything
+            if (fileInput.files.length === 0) {
+                uploadStatus.textContent = 'Please select a strictly .txt or .pdf file.';
+                uploadStatus.className = 'status-msg error';
+                return;
+            }
+
+            const file = fileInput.files[0];
+
+            // Package the file according to multipart/form-data standards
+            const formData = new FormData();
+            formData.append('file', file); // API in endpoint expects "file" format
+
+            // Lock UI while sending
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            uploadStatus.textContent = '';
+            uploadStatus.className = 'status-msg';
+
+            try {
+                // Submit asynchronously
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server returned an upload failure.');
+                }
+
+                // Unpack json 
+                const data = await response.json();
+
+                // Show success logic 
+                uploadStatus.textContent = `Document ready — ${data.pages} pages indexed`;
+                uploadStatus.className = 'status-msg success';
+
+            } catch (error) {
+                // Trap network or 500 error codes cleanly
+                uploadStatus.textContent = 'Upload failed. Please try again.';
+                uploadStatus.className = 'status-msg error';
+            } finally {
+                // Make button responsive again
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Document';
+            }
+        });
+
+        // --- 3. Provide functionality for Asking questions ---
+        async function askQuestion() {
+            const question = questionInput.value.trim();
+
+            // Ignore empty submits
+            if (!question) {
+                return;
+            }
+
+            // Lock UI so they don't spam the server
+            askBtn.disabled = true;
+            askBtn.textContent = 'Thinking...';
+            askLoader.style.display = 'block';
+            answerContainer.style.display = 'none';
+            askStatus.textContent = '';
+            askStatus.className = 'status-msg';
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ask fetch failed.');
+                }
+
+                const data = await response.json();
+
+                // Account for our Python script design where the answer generator output contains the actual answer text
+                let extractedText = data.answer;
+
+                // Edge Case Rescue: in case backend wrapped {"answer": {"answer": "bla"}}
+                if (typeof extractedText === "object" && extractedText !== null && "answer" in extractedText) {
+                    extractedText = extractedText.answer;
+                }
+
+                // Render Answer
+                answerContainer.style.display = 'block';
+                answerText.textContent = extractedText;
+
+                // Manage the array mapping for the sources
+                if (data.sources && data.sources.length > 0) {
+                    const formattedSources = data.sources.map(num => `Page ${num}`).join(', ');
+                    sourcesInfo.textContent = `Sources: ${formattedSources}`;
+                    sourcesInfo.style.display = 'block';
+                } else {
+                    // Hide entirely if empty
+                    sourcesInfo.style.display = 'none';
+                }
+
+            } catch (error) {
+                // Cleanly fail without leaking code into user's face
+                askStatus.textContent = 'Could not get an answer. Is the server running?';
+                askStatus.className = 'status-msg error';
+            } finally {
+                // Reset states
+                askBtn.disabled = false;
+                askBtn.textContent = 'Ask';
+                askLoader.style.display = 'none';
+            }
+        }
+
+        // Attach function to the click event
+        askBtn.addEventListener('click', askQuestion);
+
+        // Quality of life modifier: hitting enter on the text field submits it
+        questionInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Ensure forms don't break page layouts
+                askQuestion();
+            }
+        });
+    </script>
+</body>
+
+</html>
