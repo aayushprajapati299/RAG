@@ -1,0 +1,7 @@
+flask
+pypdf
+requests
+pymupdf
+pytesseract
+pillow
+werkzeug
