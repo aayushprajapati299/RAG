@@ -57,30 +57,44 @@ def upload_file():
         except Exception as e:
             return jsonify({"error": f"Failed to index document: {str(e)}"}), 500
 
+# Add this at the top of app.py after the imports
+chat_history = []
+
 @app.route('/ask', methods=['POST'])
 def ask_question():
-    """
-    Takes a question from the frontend, digs up some relevant pages, 
-    and gets the LLM to spit out an answer. Returns the answer and where we found it.
-    """
+    global chat_history
     data = request.get_json()
-    
+
     if not data or 'question' not in data:
-        return jsonify({"error": "Missing 'question' field in the request body"}), 400
-        
+        return jsonify({"error": "Missing 'question' field"}), 400
+
     question = data['question']
-    
+    # Accept optional reset flag from frontend
+    if data.get('reset'):
+        chat_history = []
+        return jsonify({"answer": "Chat history cleared.", "sources": []}), 200
+
     try:
         pages = retrieve_pages(question)
-        result = generate_answer(question, pages)
+        result = generate_answer(question, pages, chat_history)
+
+        # Save this turn to history (keep last 6 turns to avoid token overflow)
+        chat_history.append({
+            "question": question,
+            "answer": result["answer"]
+        })
+        if len(chat_history) > 6:
+            chat_history.pop(0)
+
         return jsonify({
             "answer": result["answer"],
             "sources": result["sources"]
         }), 200
+
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({"error": f"Failed to generate answer: {str(e)}"}), 500
+        return jsonify({"error": f"Failed: {str(e)}"}), 500
 
 if __name__ == "__main__":
     # Fire up the server! Listening on all interfaces so we can reach it easily.

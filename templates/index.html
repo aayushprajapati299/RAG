@@ -1,4 +1,4 @@
-<!-- Frontend for the Vectorless RAG system. Served by Flask from app.py -->
+<!-- Frontend for Vectorless RAG with chat history. Served by Flask from app.py -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,54 +7,52 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document Q&A</title>
     <style>
-        /* Base page styling constraints */
-        body {
-            font-family: system-ui, sans-serif;
-            max-width: 640px;
-            margin: 0 auto;
-            padding: 2rem;
-            color: #1a1a1a;
-            background-color: #ffffff;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        /* SECTION 1 - Header */
-        header {
-            text-align: center;
-            margin-bottom: 2.5rem;
+        body {
+            font-family: system-ui, sans-serif;
+            background: #f5f5f5;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
         }
 
         h1 {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 0.4rem;
         }
 
         .subtitle {
-            font-size: 1.1rem;
+            text-align: center;
             color: #666;
-            margin-top: 0;
-        }
-
-        /* Basic form elements */
-        button {
-            background-color: #1a1a1a;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            cursor: pointer;
             font-size: 15px;
-            transition: background-color 0.2s ease;
-            width: auto;
+            margin-bottom: 2rem;
         }
 
-        button:hover:not(:disabled) {
-            background-color: #333;
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e0e0e0;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
         }
 
-        button:disabled {
-            background-color: #888;
-            cursor: not-allowed;
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
         }
 
         input[type="file"],
@@ -64,272 +62,289 @@
             border-radius: 8px;
             padding: 10px;
             font-size: 15px;
-            box-sizing: border-box;
-            /* Maintain width inside padding */
+            font-family: inherit;
+            margin-bottom: 0.75rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #1a1a1a;
+        }
+
+        button {
+            background: #1a1a1a;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 15px;
+            cursor: pointer;
             font-family: inherit;
         }
 
-        /* Structure wraps */
-        .panel {
-            margin-bottom: 2rem;
+        button:hover {
+            background: #333;
         }
 
-        .form-row {
-            margin-bottom: 0.5rem;
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
         }
 
-        /* Status formatting */
-        .status-msg {
+        button.secondary {
+            background: transparent;
+            color: #666;
+            border: 1px solid #ddd;
             font-size: 13px;
-            min-height: 18px;
-            /* Avoid jumping layout */
-            margin-top: 8px;
+            padding: 6px 14px;
         }
 
-        .success {
+        button.secondary:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .status {
+            font-size: 13px;
+            margin-top: 0.5rem;
+        }
+
+        .status.success {
             color: #2e7d32;
         }
 
-        .error {
+        .status.error {
             color: #c62828;
         }
 
-        /* SECTION 3 - Answer Box Layout */
-        .answer-box {
-            background-color: #f7f7f7;
-            border-left: 4px solid #1a1a1a;
-            padding: 1rem;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            /* Keeps line breaks exactly as returned by LLM */
-            margin-top: 1.5rem;
-            display: none;
-            /* Invisible until content arrives */
+        /* Chat area */
+        .chat-box {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 520px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .chat-box:empty::before {
+            content: "Your conversation will appear here after you ask a question.";
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .bubble {
+            padding: 0.85rem 1rem;
+            border-radius: 10px;
+            font-size: 15px;
             line-height: 1.6;
+            white-space: pre-wrap;
+            max-width: 92%;
         }
 
-        .sources-text {
+        .bubble.user {
+            background: #1a1a1a;
+            color: #fff;
+            align-self: flex-end;
+            border-bottom-right-radius: 3px;
+        }
+
+        .bubble.assistant {
+            background: #f0f0f0;
+            color: #1a1a1a;
+            align-self: flex-start;
+            border-bottom-left-radius: 3px;
+            border-left: 4px solid #1a1a1a;
+        }
+
+        .bubble.thinking {
+            background: #f7f7f7;
+            color: #999;
+            align-self: flex-start;
+            font-style: italic;
+        }
+
+        .sources {
+            font-size: 12px;
             color: #888;
-            font-size: 13px;
-            margin-top: 15px;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
+            margin-top: 0.35rem;
+            align-self: flex-start;
+            padding-left: 4px;
         }
 
-        /* Keyframes for the pulsing loading line */
-        .loader {
-            display: none;
-            /* hidden until button clicked */
-            margin: 15px 0 0 0;
-            width: 50px;
-            height: 4px;
-            background-color: #eee;
-            border-radius: 2px;
-            position: relative;
-            overflow: hidden;
+        .ask-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 0.75rem;
         }
 
-        .loader::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 40%;
-            background-color: #1a1a1a;
-            border-radius: 2px;
-            animation: pulse 1s infinite ease-in-out;
+        .ask-row input {
+            margin-bottom: 0;
+            flex: 1;
+        }
+
+        .ask-row button {
+            flex-shrink: 0;
+        }
+
+        .chat-controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 0.5rem;
         }
 
         @keyframes pulse {
-            0% {
-                transform: translateX(-100%);
+
+            0%,
+            100% {
+                opacity: 1
             }
 
-            100% {
-                transform: translateX(250%);
+            50% {
+                opacity: 0.4
             }
+        }
+
+        .thinking {
+            animation: pulse 1.2s ease-in-out infinite;
         }
     </style>
 </head>
 
 <body>
-
-    <!-- SECTION 1: Header -->
-    <header>
-        <h1>Document Q&A</h1>
+    <div class="container">
+        <h1>Document Q&amp;A</h1>
         <p class="subtitle">Upload a document, then ask it anything</p>
-    </header>
 
-    <!-- SECTION 2: Upload Panel -->
-    <div class="panel" id="upload-panel">
-        <label for="file-input" style="display:block; margin-bottom:8px; font-weight:600; font-size:15px;">Document
-            Upload</label>
-        <div class="form-row">
+        <!-- Upload card -->
+        <div class="card">
+            <div class="card-title">Document Upload</div>
             <input type="file" id="file-input" accept=".pdf,.txt">
+            <button id="upload-btn" onclick="uploadFile()">Upload Document</button>
+            <div id="upload-status" class="status"></div>
         </div>
-        <button id="upload-btn">Upload Document</button>
-        <div id="upload-status" class="status-msg"></div>
-    </div>
 
-    <!-- SECTION 3: Question and Answer Panel -->
-    <div class="panel" id="qa-panel">
-        <div class="form-row">
-            <input type="text" id="question-input" placeholder="Ask a question about your document...">
-        </div>
-        <button id="ask-btn">Ask</button>
-
-        <div id="ask-loader" class="loader"></div>
-        <div id="ask-status" class="status-msg"></div>
-
-        <div id="answer-container" class="answer-box">
-            <div id="answer-text"></div>
-            <div id="sources-info" class="sources-text"></div>
+        <!-- Chat card -->
+        <div class="card">
+            <div class="card-title">Conversation</div>
+            <div class="chat-controls">
+                <button class="secondary" onclick="clearChat()">Clear chat</button>
+            </div>
+            <div class="chat-box" id="chat-box"></div>
+            <div class="ask-row">
+                <input type="text" id="question-input" placeholder="Ask a question about your document..."
+                    onkeydown="if(event.key==='Enter') askQuestion()">
+                <button id="ask-btn" onclick="askQuestion()">Ask</button>
+            </div>
         </div>
     </div>
 
-    <!-- MAIN APPLICATON JAVASCRIPT -->
     <script>
-        // --- 1. Identify all page elements ---
-        const fileInput = document.getElementById('file-input');
-        const uploadBtn = document.getElementById('upload-btn');
-        const uploadStatus = document.getElementById('upload-status');
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            const btn = document.getElementById('upload-btn');
+            const status = document.getElementById('upload-status');
 
-        const questionInput = document.getElementById('question-input');
-        const askBtn = document.getElementById('ask-btn');
-        const askLoader = document.getElementById('ask-loader');
-        const askStatus = document.getElementById('ask-status');
-
-        const answerContainer = document.getElementById('answer-container');
-        const answerText = document.getElementById('answer-text');
-        const sourcesInfo = document.getElementById('sources-info');
-
-        // --- 2. Provide functionality for uploading the document ---
-        uploadBtn.addEventListener('click', async () => {
-            // Error out early if they hit upload without selecting anything
-            if (fileInput.files.length === 0) {
-                uploadStatus.textContent = 'Please select a strictly .txt or .pdf file.';
-                uploadStatus.className = 'status-msg error';
+            if (!fileInput.files[0]) {
+                status.textContent = 'Please select a file first.';
+                status.className = 'status error';
                 return;
             }
 
-            const file = fileInput.files[0];
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+            status.textContent = '';
 
-            // Package the file according to multipart/form-data standards
             const formData = new FormData();
-            formData.append('file', file); // API in endpoint expects "file" format
-
-            // Lock UI while sending
-            uploadBtn.disabled = true;
-            uploadBtn.textContent = 'Uploading...';
-            uploadStatus.textContent = '';
-            uploadStatus.className = 'status-msg';
+            formData.append('file', fileInput.files[0]);
 
             try {
-                // Submit asynchronously
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error('Server returned an upload failure.');
-                }
-
-                // Unpack json 
-                const data = await response.json();
-
-                // Show success logic 
-                uploadStatus.textContent = `Document ready — ${data.pages} pages indexed`;
-                uploadStatus.className = 'status-msg success';
-
-            } catch (error) {
-                // Trap network or 500 error codes cleanly
-                uploadStatus.textContent = 'Upload failed. Please try again.';
-                uploadStatus.className = 'status-msg error';
-            } finally {
-                // Make button responsive again
-                uploadBtn.disabled = false;
-                uploadBtn.textContent = 'Upload Document';
-            }
-        });
-
-        // --- 3. Provide functionality for Asking questions ---
-        async function askQuestion() {
-            const question = questionInput.value.trim();
-
-            // Ignore empty submits
-            if (!question) {
-                return;
-            }
-
-            // Lock UI so they don't spam the server
-            askBtn.disabled = true;
-            askBtn.textContent = 'Thinking...';
-            askLoader.style.display = 'block';
-            answerContainer.style.display = 'none';
-            askStatus.textContent = '';
-            askStatus.className = 'status-msg';
-
-            try {
-                const response = await fetch('/ask', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ question: question })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Ask fetch failed.');
-                }
-
-                const data = await response.json();
-
-                // Account for our Python script design where the answer generator output contains the actual answer text
-                let extractedText = data.answer;
-
-                // Edge Case Rescue: in case backend wrapped {"answer": {"answer": "bla"}}
-                if (typeof extractedText === "object" && extractedText !== null && "answer" in extractedText) {
-                    extractedText = extractedText.answer;
-                }
-
-                // Render Answer
-                answerContainer.style.display = 'block';
-                answerText.textContent = extractedText;
-
-                // Manage the array mapping for the sources
-                if (data.sources && data.sources.length > 0) {
-                    const formattedSources = data.sources.map(num => `Page ${num}`).join(', ');
-                    sourcesInfo.textContent = `Sources: ${formattedSources}`;
-                    sourcesInfo.style.display = 'block';
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) {
+                    status.textContent = `Document ready — ${data.pages} pages indexed`;
+                    status.className = 'status success';
+                    clearChat(true);
                 } else {
-                    // Hide entirely if empty
-                    sourcesInfo.style.display = 'none';
+                    status.textContent = data.error || 'Upload failed.';
+                    status.className = 'status error';
                 }
-
-            } catch (error) {
-                // Cleanly fail without leaking code into user's face
-                askStatus.textContent = 'Could not get an answer. Is the server running?';
-                askStatus.className = 'status-msg error';
-            } finally {
-                // Reset states
-                askBtn.disabled = false;
-                askBtn.textContent = 'Ask';
-                askLoader.style.display = 'none';
+            } catch (e) {
+                status.textContent = 'Upload failed. Is the server running?';
+                status.className = 'status error';
             }
+
+            btn.disabled = false;
+            btn.textContent = 'Upload Document';
         }
 
-        // Attach function to the click event
-        askBtn.addEventListener('click', askQuestion);
+        async function askQuestion() {
+            const input = document.getElementById('question-input');
+            const btn = document.getElementById('ask-btn');
+            const chatBox = document.getElementById('chat-box');
+            const question = input.value.trim();
 
-        // Quality of life modifier: hitting enter on the text field submits it
-        questionInput.addEventListener('keypress', (event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault(); // Ensure forms don't break page layouts
-                askQuestion();
+            if (!question) return;
+
+            // Add user bubble
+            const userBubble = document.createElement('div');
+            userBubble.className = 'bubble user';
+            userBubble.textContent = question;
+            chatBox.appendChild(userBubble);
+
+            // Add thinking bubble
+            const thinkingBubble = document.createElement('div');
+            thinkingBubble.className = 'bubble thinking';
+            thinkingBubble.textContent = 'Thinking...';
+            chatBox.appendChild(thinkingBubble);
+
+            input.value = '';
+            btn.disabled = true;
+            btn.textContent = 'Thinking...';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                const data = await res.json();
+
+                // Replace thinking with real answer
+                thinkingBubble.className = 'bubble assistant';
+                thinkingBubble.textContent = data.answer || data.error || 'No answer returned.';
+
+                // Add sources line
+                if (data.sources && data.sources.length > 0) {
+                    const srcLine = document.createElement('div');
+                    srcLine.className = 'sources';
+                    srcLine.textContent = `Sources: Page ${data.sources.join(', Page ')}`;
+                    chatBox.appendChild(srcLine);
+                }
+
+            } catch (e) {
+                thinkingBubble.className = 'bubble assistant';
+                thinkingBubble.textContent = 'Could not get an answer. Is the server running?';
             }
-        });
+
+            btn.disabled = false;
+            btn.textContent = 'Ask';
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function clearChat(silent = false) {
+            document.getElementById('chat-box').innerHTML = '';
+            if (!silent) {
+                try {
+                    await fetch('/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ question: '', reset: true })
+                    });
+                } catch (e) { }
+            }
+        }
     </script>
 </body>
 
