@@ -1,6 +1,22 @@
 services:
   - type: web
     name: vectorless-rag
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    env: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GROQ_MODEL
+        value: openai/gpt-oss-20b

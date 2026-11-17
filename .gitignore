@@ -1,18 +1,43 @@
-# Python bytecode
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
 
-# Virtual Environment
+# Virtual Environments
+.venv/
 venv/
 env/
-.env
+ENV/
 
-# IDE specific (Rider/VS Code)
+# Environment Variables
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Uploads and temporary files
+uploads/
+
+# SQLite / Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and Editor files
 .idea/
 .vscode/
 
-# OS files
+# OS generated files
 .DS_Store
 Thumbs.db
 
-uploads/
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
+
+

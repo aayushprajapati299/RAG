@@ -1,0 +1,54 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: vectorless_rag_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rag_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rag_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vectorless_rag_api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/rag_db}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-do-not-use-in-production}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      HOST: 0.0.0.0
+      PORT: 5000
+      DEBUG: "false"
+      UPLOAD_DIR: /app/uploads
+      HYBRID_BM25_WEIGHT: ${HYBRID_BM25_WEIGHT:-0.5}
+      HYBRID_VECTOR_WEIGHT: ${HYBRID_VECTOR_WEIGHT:-0.5}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  postgres_data:
+  uploads_data:

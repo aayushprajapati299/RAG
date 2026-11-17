@@ -1,0 +1,179 @@
+import * as React from "react";
+import { Sparkles, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+interface LoginPageProps {
+  onNavigateToRegister: () => void;
+}
+
+export default function LoginPage({ onNavigateToRegister }: LoginPageProps) {
+  const { login, error: serverError, clearError } = useAuth();
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [clientError, setClientError] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setClientError(null);
+    clearError();
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setClientError("Please enter your email address.");
+      return;
+    }
+
+    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setClientError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!password) {
+      setClientError("Please enter your password.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await login(cleanEmail, password);
+    } catch {
+      // Error handled by AuthContext
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const displayError = clientError || serverError;
+
+  return (
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-8">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      <Card className="w-full max-w-md shadow-md border-border">
+        <CardHeader className="space-y-2 text-center pb-6">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow">
+            <Sparkles className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            Sign in to Vectorless RAG
+          </CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            Enter your email and password to access your document sessions
+          </CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit} noValidate>
+          <CardContent className="space-y-4">
+            {displayError && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="flex items-start gap-2.5 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+                <span>{displayError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label
+                htmlFor="login-email"
+                className="text-xs font-semibold leading-none text-foreground"
+              >
+                Email address
+              </label>
+              <Input
+                id="login-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (clientError) setClientError(null);
+                }}
+                placeholder="name@example.com"
+                disabled={isSubmitting}
+                className="h-10"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="login-password"
+                  className="text-xs font-semibold leading-none text-foreground"
+                >
+                  Password
+                </label>
+              </div>
+              <Input
+                id="login-password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (clientError) setClientError(null);
+                }}
+                placeholder="••••••••"
+                disabled={isSubmitting}
+                className="h-10"
+              />
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex flex-col space-y-4 pt-2">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-10 font-medium"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+                </>
+              )}
+            </Button>
+
+            <div className="text-center text-xs text-muted-foreground">
+              Don&apos;t have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  clearError();
+                  onNavigateToRegister();
+                }}
+                className="font-semibold text-primary underline-offset-4 hover:underline cursor-pointer"
+              >
+                Create one now
+              </button>
+            </div>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
